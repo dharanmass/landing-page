@@ -1,7 +1,57 @@
+import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Mail, MapPin, Phone, Send, Linkedin, Github, Globe } from 'lucide-react';
+import { Mail, MapPin, Phone, Send, Linkedin, Github, Globe, Loader2 } from 'lucide-react';
+import emailjs from '@emailjs/browser';
 
 const Contact = () => {
+    const form = useRef();
+    const [loading, setLoading] = useState(false);
+    const [status, setStatus] = useState({ type: '', message: '' });
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setStatus({ type: '', message: '' });
+
+        // Replace these with your actual EmailJS credentials
+        // Sign up at https://www.emailjs.com/
+        const SERVICE_ID = 'service_zpslr0a';
+        const TEMPLATE_ID = 'template_9aa7pcl';
+        const AUTO_REPLY_TEMPLATE_ID = 'template_ktt6gfv';
+        const PUBLIC_KEY = 'ebDAYV3mi4axbccBw';
+
+        const formData = new FormData(form.current);
+        const templateParams = {
+            from_name: formData.get('from_name'),
+            reply_to: formData.get('reply_to'),
+            subject: formData.get('subject'),
+            message: formData.get('message')
+        };
+
+        try {
+            // 1. Send notification to you
+            await emailjs.sendForm(SERVICE_ID, TEMPLATE_ID, form.current, PUBLIC_KEY);
+
+            // 2. Send auto-reply to visitor
+            try {
+                await emailjs.send(SERVICE_ID, AUTO_REPLY_TEMPLATE_ID, templateParams, PUBLIC_KEY);
+            } catch (autoReplyError) {
+                console.error("Auto-reply failed:", autoReplyError);
+            }
+
+            setLoading(false);
+            setStatus({ type: 'success', message: 'Message sent successfully! I will get back to you soon.' });
+
+            form.current.reset();
+            setTimeout(() => setStatus({ type: '', message: '' }), 5000);
+
+        } catch (error) {
+            setLoading(false);
+            console.error("Email sending failed:", error);
+            setStatus({ type: 'error', message: 'Failed to send message. Please try again later.' });
+        }
+    };
+
     return (
         <section id="contact" className="py-20 relative overflow-hidden">
             {/* Background Glow */}
@@ -80,6 +130,8 @@ const Contact = () => {
                         className="w-full lg:w-2/3"
                     >
                         <motion.form
+                            ref={form}
+                            onSubmit={handleSubmit}
                             initial="hidden"
                             whileInView="visible"
                             viewport={{ once: true }}
@@ -97,19 +149,23 @@ const Contact = () => {
                         >
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className="space-y-2">
-                                    <label htmlFor="name" className="text-sm font-medium text-text-muted">Name</label>
+                                    <label htmlFor="from_name" className="text-sm font-medium text-text-muted">Name</label>
                                     <input
                                         type="text"
-                                        id="name"
+                                        name="from_name"
+                                        id="from_name"
+                                        required
                                         className="w-full px-4 py-3 rounded-lg bg-secondary/50 border border-slate-700 focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-all"
                                         placeholder="John Doe"
                                     />
                                 </motion.div>
                                 <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className="space-y-2">
-                                    <label htmlFor="email" className="text-sm font-medium text-text-muted">Email</label>
+                                    <label htmlFor="reply_to" className="text-sm font-medium text-text-muted">Email</label>
                                     <input
                                         type="email"
-                                        id="email"
+                                        name="reply_to"
+                                        id="reply_to"
+                                        required
                                         className="w-full px-4 py-3 rounded-lg bg-secondary/50 border border-slate-700 focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-all"
                                         placeholder="john@example.com"
                                     />
@@ -119,7 +175,9 @@ const Contact = () => {
                                 <label htmlFor="subject" className="text-sm font-medium text-text-muted">Subject</label>
                                 <input
                                     type="text"
+                                    name="subject"
                                     id="subject"
+                                    required
                                     className="w-full px-4 py-3 rounded-lg bg-secondary/50 border border-slate-700 focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-all"
                                     placeholder="Project Inquiry"
                                 />
@@ -127,26 +185,48 @@ const Contact = () => {
                             <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className="space-y-2">
                                 <label htmlFor="message" className="text-sm font-medium text-text-muted">Message</label>
                                 <textarea
+                                    name="message"
                                     id="message"
                                     rows="5"
+                                    required
                                     className="w-full px-4 py-3 rounded-lg bg-secondary/50 border border-slate-700 focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-all resize-none"
                                     placeholder="Tell me about your project..."
                                 />
                             </motion.div>
+
+                            {status.message && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className={`p-4 rounded-lg ${status.type === 'success' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}
+                                >
+                                    {status.message}
+                                </motion.div>
+                            )}
+
                             <motion.button
                                 variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}
                                 type="submit"
-                                className="w-full py-4 bg-accent text-primary font-bold rounded-lg hover:bg-accent-glow transition-colors flex items-center justify-center gap-2"
+                                disabled={loading}
+                                className="w-full py-4 bg-accent text-primary font-bold rounded-lg hover:bg-accent-glow transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                             >
-                                Send Message <Send size={18} />
+                                {loading ? (
+                                    <>
+                                        <Loader2 size={18} className="animate-spin" /> Sending...
+                                    </>
+                                ) : (
+                                    <>
+                                        Send Message <Send size={18} />
+                                    </>
+                                )}
                             </motion.button>
                         </motion.form>
                     </motion.div>
                 </div>
             </div>
-        </section>
+        </section >
     );
 };
 
